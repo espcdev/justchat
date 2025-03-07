@@ -33,7 +33,7 @@
             cursor: pointer;
             transition: all 0.2s ease;
         }
-        <!-- Agrega animación al loader -->
+        <!-- Agrega animaciÃ³n al loader -->
 .animate-spin {
     animation: spin 1s linear infinite;
 }
@@ -94,7 +94,7 @@
         <!-- Panel de configuracion -->
         <div id="settingsPanel" class="settings-panel absolute top-0 right-0 h-full w-80 bg-white dark:bg-gray-800 border-l dark:border-gray-700 p-4 z-10">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-lg font-bold">Configuraci�n</h2>
+                <h2 class="text-lg font-bold">Configuración</h2>
                 <button id="closeSettings"><i data-lucide="x" class="w-6 h-6"></i></button>
             </div>
             <div class="space-y-6">
@@ -167,7 +167,7 @@
     elements.userInput.addEventListener('keydown', handleInputKey);
     elements.apiKey.addEventListener('input', () => elements.apiKeyError.textContent = '');
 
-    // Inicialización
+    // InicializaciÃ³n
     lucide.createIcons();
     loadSettings();
     loadChats();
@@ -183,19 +183,19 @@
     const message = elements.userInput.value.trim();
     if (!message) return;
 
-    // Validación de API Key
+    // ValidaciÃ³n de API Key
     if (!elements.apiKey.validity.valid) {
-        elements.apiKeyError.textContent = 'Por favor, introduce una API Key válida';
+        elements.apiKeyError.textContent = 'Por favor, introduce una API Key vÃ¡lida';
         return;
     }
 
-    // Deshabilitar botón y mostrar loader
+    // Deshabilitar botÃ³n y mostrar loader
     elements.sendButton.disabled = true;
     elements.sendButton.innerHTML = '<i data-lucide="loader" class="w-6 h-6 animate-spin"></i>';
     lucide.createIcons();
 
     try {
-        // Añadir mensaje del usuario
+        // AÃ±adir mensaje del usuario
         addMessageToChat(message, 'user');
         elements.userInput.value = '';
 
@@ -212,7 +212,7 @@
         }
         
     } finally {
-        // Restaurar botón
+        // Restaurar botÃ³n
         elements.sendButton.disabled = false;
         elements.sendButton.innerHTML = '<i data-lucide="send" class="w-6 h-6"></i>';
         lucide.createIcons();
@@ -225,7 +225,7 @@
         const apiKey = elements.apiKey.value;
 
         if (!apiKey) throw new Error('API Key requerida');
-        if (!apiKey.startsWith('sk-or-')) throw new Error('Formato de API Key inválido');
+        if (!apiKey.startsWith('sk-or-')) throw new Error('Formato de API Key invÃ¡lido');
 
         try {
             conversationHistory.push({ role: "user", content: prompt });
@@ -287,7 +287,7 @@
         if (!error) renderChats(data);
     }
 
-    // Modifica la funci�n saveChat()
+    // Modifica la función saveChat()
 async function saveChat() {
     try {
         // Generar UUID si es un nuevo chat
@@ -311,7 +311,7 @@ async function saveChat() {
         await loadChats();
     } catch (error) {
         console.error('Error al guardar:', error.message);
-        alert('Error al guardar el chat. Verifica tu conexi�n y permisos.');
+        alert('Error al guardar el chat. Verifica tu conexión y permisos.');
     }
 }
 
