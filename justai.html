@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JustChatAI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-html.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playwrite+IT+Moderna:wght@400&display=swap');
+        .app-title { font-family: 'Playwrite IT Moderna', cursive; }
+        .sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+        .sidebar.open { transform: translateX(0); }
+        .settings-panel { transform: translateX(100%); transition: transform 0.3s ease; }
+        .settings-panel.open { transform: translateX(0); }
+        .chat-bubble { border-radius: 18px; max-width: 80%; }
+        .dark pre code { background-color: #1f2937 !important; }
+        .copy-btn { 
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        <!-- Agrega animaci贸n al loader -->
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+        #apiKey:invalid {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+        }
+        #apiKey:valid {
+            border-color: #10b981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 min-h-screen flex flex-col">
+    <!-- Header -->
+    <header class="p-4 border-b dark:border-gray-700 flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <button id="menuToggle"><i data-lucide="menu" class="w-6 h-6"></i></button>
+            <div class="flex items-center space-x-2">
+                <i data-lucide="message-circle" class="w-8 h-8 text-purple-500"></i>
+                <h1 class="app-title text-xl font-bold">JustChatAI</h1>
+            </div>
+        </div>
+        <button id="settingsToggle" class="p-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg">
+            <i data-lucide="settings" class="w-6 h-6"></i>
+        </button>
+    </header>
+
+    <!-- Sidebar de chats -->
+    <div id="sidebar" class="sidebar fixed left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 p-4 z-20">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-bold">Mis Chats</h2>
+            <button id="closeSidebar"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div id="chatList" class="overflow-y-auto h-[calc(100vh-150px)] space-y-2"></div>
+    </div>
+
+    <!-- Area principal -->
+    <main class="flex-1 flex flex-col overflow-hidden relative">
+        <!-- Mensajes -->
+        <div id="chatContainer" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+        <!-- Input -->
+        <div class="p-4 border-t dark:border-gray-700">
+            <div class="flex items-center space-x-2">
+                <textarea id="userInput" rows="2" 
+                    class="flex-1 p-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl resize-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Escribe tu mensaje..."></textarea>
+                <button id="sendButton" class="p-4 bg-purple-500 hover:bg-purple-600 text-white rounded-xl">
+                    <i data-lucide="send" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel de configuracion -->
+        <div id="settingsPanel" class="settings-panel absolute top-0 right-0 h-full w-80 bg-white dark:bg-gray-800 border-l dark:border-gray-700 p-4 z-10">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold">Configuraci髇</h2>
+                <button id="closeSettings"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="space-y-6">
+                <div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <p class="font-medium mb-2">Tema</p>
+                    <div class="flex items-center justify-between">
+                        <span>Modo Oscuro</span>
+                        <label class="switch">
+                            <input type="checkbox" id="themeToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <p class="font-medium mb-2">Modelos</p>
+                    <select id="modelSelect" class="w-full p-2 rounded-md border dark:border-gray-600 dark:bg-gray-800">
+                        <option value="qwen">Qwen</option>
+                        <option value="dolphin">Dolphin R1</option>
+                        <option value="gemini">Gemini</option>
+                    </select>
+                </div>
+                <div class="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <p class="font-medium mb-2">API Key de OpenRouter</p>
+                    <input type="password" id="apiKey" 
+       class="w-full p-2 rounded-md border dark:border-gray-600 dark:bg-gray-800"
+       placeholder="sk-or-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+       pattern="^sk-or-[-a-zA-Z0-9]{48}$"
+       title="La API Key debe comenzar con 'sk-or-' seguido de 48 caracteres (pueden incluir guiones)"
+           oninput="guardarAPIKey()">
+                    <p class="text-xs mt-2 text-red-500" id="apiKeyError"></p>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+<script>
+    const SUPABASE_URL = 'https://kejobcugaiewoyphzbys.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtlam9iY3VnYWlld295cGh6YnlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDEzNjcxOTAsImV4cCI6MjA1Njk0MzE5MH0.K8V1cHB7B4tvM2ITE6HNrojWvAU2mr7y7rfH1MZTqEM';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    let currentChatId = null;
+    let conversationHistory = [];
+
+    const elements = {
+        menuToggle: document.getElementById('menuToggle'),
+        sidebar: document.getElementById('sidebar'),
+        closeSidebar: document.getElementById('closeSidebar'),
+        chatList: document.getElementById('chatList'),
+        settingsToggle: document.getElementById('settingsToggle'),
+        settingsPanel: document.getElementById('settingsPanel'),
+        closeSettings: document.getElementById('closeSettings'),
+        themeToggle: document.getElementById('themeToggle'),
+        userInput: document.getElementById('userInput'),
+        sendButton: document.getElementById('sendButton'),
+        chatContainer: document.getElementById('chatContainer'),
+        modelSelect: document.getElementById('modelSelect'),
+        apiKey: document.getElementById('apiKey'),
+        apiKeyError: document.getElementById('apiKeyError')
+    };
+
+    // Event Listeners
+    elements.menuToggle.addEventListener('click', () => elements.sidebar.classList.add('open'));
+    elements.closeSidebar.addEventListener('click', () => elements.sidebar.classList.remove('open'));
+    elements.settingsToggle.addEventListener('click', () => elements.settingsPanel.classList.add('open'));
+    elements.closeSettings.addEventListener('click', () => {
+        elements.settingsPanel.classList.remove('open');
+        elements.apiKeyError.textContent = '';
+    });
+    elements.themeToggle.addEventListener('change', toggleDarkMode);
+    elements.sendButton.addEventListener('click', sendMessage);
+    elements.userInput.addEventListener('keydown', handleInputKey);
+    elements.apiKey.addEventListener('input', () => elements.apiKeyError.textContent = '');
+
+    // Inicializaci贸n
+    lucide.createIcons();
+    loadSettings();
+    loadChats();
+
+    // Funciones principales
+    function toggleDarkMode() {
+        const enabled = document.getElementById('themeToggle').checked;
+        document.documentElement.classList.toggle('dark', enabled);
+        localStorage.setItem('darkMode', enabled);
+    }
+
+    async function sendMessage() {
+    const message = elements.userInput.value.trim();
+    if (!message) return;
+
+    // Validaci贸n de API Key
+    if (!elements.apiKey.validity.valid) {
+        elements.apiKeyError.textContent = 'Por favor, introduce una API Key v谩lida';
+        return;
+    }
+
+    // Deshabilitar bot贸n y mostrar loader
+    elements.sendButton.disabled = true;
+    elements.sendButton.innerHTML = '<i data-lucide="loader" class="w-6 h-6 animate-spin"></i>';
+    lucide.createIcons();
+
+    try {
+        // A帽adir mensaje del usuario
+        addMessageToChat(message, 'user');
+        elements.userInput.value = '';
+
+        // Obtener respuesta de la IA
+        const response = await fetchAIResponse(message);
+        addMessageToChat(response, 'ai');
+        await saveChat();
+
+    } catch (error) {
+        // Manejo de errores
+        addMessageToChat(`Error: ${error.message}`, 'error');
+        if (error.message.includes('API key') || error.message.includes('formato')) {
+            elements.apiKeyError.textContent = error.message;
+        }
+        
+    } finally {
+        // Restaurar bot贸n
+        elements.sendButton.disabled = false;
+        elements.sendButton.innerHTML = '<i data-lucide="send" class="w-6 h-6"></i>';
+        lucide.createIcons();
+    }
+}
+
+    async function fetchAIResponse(prompt) {
+        const selectedModel = elements.modelSelect.value;
+        const modelId = MODEL_MAP[selectedModel] || selectedModel;
+        const apiKey = elements.apiKey.value;
+
+        if (!apiKey) throw new Error('API Key requerida');
+        if (!apiKey.startsWith('sk-or-')) throw new Error('Formato de API Key inv谩lido');
+
+        try {
+            conversationHistory.push({ role: "user", content: prompt });
+            
+            const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`,
+                    "HTTP-Referer": window.location.href,
+                    "X-Title": "JustChatAI"
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: conversationHistory,
+                    temperature: 0.7,
+                    max_tokens: 1000
+                })
+            });
+
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error?.message || `Error HTTP ${response.status}`);
+            }
+
+            const aiMessage = data.choices[0].message.content;
+            conversationHistory.push({ role: "assistant", content: aiMessage });
+            
+            if (conversationHistory.length > 20) {
+                conversationHistory = conversationHistory.slice(-20);
+            }
+
+            return aiMessage;
+        } catch (error) {
+            console.error('Error detallado:', {
+                Modelo: modelId,
+                API_Key: apiKey.slice(0, 8) + '...',
+                Historial: conversationHistory
+            });
+            throw new Error(`Error en la solicitud: ${error.message}`);
+        }
+    }
+    
+    function guardarAPIKey() {
+        const apiKey = document.getElementById('apiKey').value;
+        if (apiKey.match(/^sk-or-[a-zA-Z0-9]{48}$/)) {
+            localStorage.setItem('openrouter_api_key', apiKey);
+        }
+    }
+
+    // Funciones de Supabase
+    async function loadChats() {
+        const { data, error } = await supabase
+            .from('chats')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (!error) renderChats(data);
+    }
+
+    // Modifica la funci髇 saveChat()
+async function saveChat() {
+    try {
+        // Generar UUID si es un nuevo chat
+        if (!currentChatId) {
+            currentChatId = crypto.randomUUID();
+        }
+
+        const chatData = {
+            id: currentChatId,
+            messages: conversationHistory,
+            title: `Chat ${new Date().toLocaleString()}`
+        };
+
+        const { error } = await supabase
+            .from('chats')
+            .upsert(chatData, { onConflict: 'id' })
+            .select();
+
+        if (error) throw error;
+        
+        await loadChats();
+    } catch (error) {
+        console.error('Error al guardar:', error.message);
+        alert('Error al guardar el chat. Verifica tu conexi髇 y permisos.');
+    }
+}
+
+    function renderChats(chats) {
+        elements.chatList.innerHTML = chats.map(chat => `
+            <div class="chat-item p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg cursor-pointer" 
+                onclick="loadChat('${chat.id}')">
+                <p class="font-medium">${chat.title}</p>
+                <small class="text-gray-500">${new Date(chat.created_at).toLocaleString()}</small>
+            </div>
+        `).join('');
+    }
+
+    async function loadChat(chatId) {
+        const { data, error } = await supabase
+            .from('chats')
+            .select('*')
+            .eq('id', chatId)
+            .single();
+        
+        if (!error) {
+            currentChatId = chatId;
+            conversationHistory = data.messages;
+            elements.chatContainer.innerHTML = '';
+            data.messages.forEach(msg => addMessageToChat(msg.content, msg.role === 'user' ? 'user' : 'ai'));
+        }
+    }
+    
+    function addLoadingIndicator() {
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble p-4 bg-purple-100 dark:bg-purple-900 flex items-center';
+        bubble.innerHTML = `
+            <div class="flex items-center">
+                <div class="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mr-3"></div>
+                <span>Generando respuesta...</span>
+            </div>`;
+        chatContainer.appendChild(bubble);
+        return bubble;
+    }
+
+    // Funciones de UI
+    function addMessageToChat(content, type) {
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble p-4 ${type === 'user' ? 'ml-auto bg-purple-200 dark:bg-purple-800' 
+            : type === 'ai' ? 'bg-purple-100 dark:bg-purple-900' 
+            : 'bg-red-100 dark:bg-red-900'}`;
+        
+        bubble.innerHTML = formatMessage(content);
+        elements.chatContainer.appendChild(bubble);
+        elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+        Prism.highlightAllUnder(bubble);
+    }
+
+    function formatMessage(content) {
+        return content.replace(/```([\s\S]*?)```/g, (_, code) => `
+            <div class="code-container relative my-2">
+                <pre class="code-block"><code>${escapeHtml(code.trim())}</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `);
+    }
+
+    function copyCode(button) {
+        const code = button.previousElementSibling.textContent;
+        navigator.clipboard.writeText(code);
+        const icon = button.querySelector('i');
+        icon.setAttribute('data-lucide', 'check');
+        setTimeout(() => icon.setAttribute('data-lucide', 'copy'), 2000);
+        lucide.createIcons();
+    }
+
+    function loadSettings() {
+        const darkMode = localStorage.getItem('darkMode') === 'true';
+        elements.themeToggle.checked = darkMode;
+        document.documentElement.classList.toggle('dark', darkMode);
+    }
+
+    // Utilidades
+    const MODEL_MAP = {
+        'qwen': 'qwen/qwq-32b:free',
+        'dolphin': 'cognitivecomputations/dolphin3.0-r1-mistral-24b:free',
+        'gemini': 'google/gemini-2.0-pro-exp-02-05:free'
+    };
+
+    function escapeHtml(unsafe) {
+        return unsafe.replace(/&/g, "&amp;")
+                    .replace(/</g, "<")
+                    .replace(/>/g, ">")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+    }
+
+    function handleInputKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+</script>
+</body>
+</html>
